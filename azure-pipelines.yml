@@ -1,0 +1,36 @@
+trigger:
+  - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  dockerId: 'TU_USUARIO_DOCKERHUB' # <--- CAMBIA ESTO
+  imageName: 'fastapi-demo'
+  # Nombre de la Conexión en Azure DevOps
+  dockerConnection: 'DockerHubConn' 
+  azureConnection: 'AzureRMConn' 
+  resourceGroup: 'rg-fastapi-demo'
+  containerAppName: 'app-fastapi-prueba1'
+
+steps:
+# 1. Build & Push a Docker Hub
+- task: Docker@2
+  displayName: Build and Push
+  inputs:
+    containerRegistry: $(dockerConnection)
+    repository: $(dockerId)/$(imageName)
+    command: 'buildAndPush'
+    Dockerfile: 'app/Dockerfile'
+    tags: |
+      latest
+      $(Build.BuildId)
+
+# 2. Desplegar la nueva imagen en Azure Container Apps
+- task: AzureContainerApps@1
+  displayName: Deploy to Azure Container Apps
+  inputs:
+    azureSubscription: $(azureConnection)
+    containerAppName: $(containerAppName)
+    resourceGroup: $(resourceGroup)
+    imageToDeploy: '$(dockerId)/$(imageName):$(Build.BuildId)'

@@ -1,0 +1,27 @@
+[project]
+name = "fastapi-azure-demo"
+version = "0.1.0"
+description = "Backend API para demo en Azure"
+readme = "README.md"
+requires-python = ">=3.12"
+
+dependencies = [
+    "fastapi>=0.124.4",
+    "uvicorn>=0.38.0",
+    "psycopg2-binary>=2.9.11",
+    "sqlalchemy>=2.0.45",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "httpx"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+# Esto es opcional, pero ayuda a uv a saber que no es un paquete librería, sino una app
+package = false
