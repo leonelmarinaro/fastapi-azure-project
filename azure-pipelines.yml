@@ -1,36 +1,150 @@
 trigger:
-  - main
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - app/*
+      - frontend/*
+      - infra/*
 
 pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  dockerId: 'TU_USUARIO_DOCKERHUB' # <--- CAMBIA ESTO
-  imageName: 'fastapi-demo'
-  # Nombre de la Conexión en Azure DevOps
+  # === CONFIGURACION GENERAL ===
+  dockerId: 'TU_USUARIO_DOCKERHUB' # <--- Reemplazar con tu usuario
   dockerConnection: 'DockerHubConn' 
   azureConnection: 'AzureRMConn' 
-  resourceGroup: 'rg-fastapi-demo'
-  containerAppName: 'app-fastapi-prueba1'
 
-steps:
-# 1. Build & Push a Docker Hub
-- task: Docker@2
-  displayName: Build and Push
-  inputs:
-    containerRegistry: $(dockerConnection)
-    repository: $(dockerId)/$(imageName)
-    command: 'buildAndPush'
-    Dockerfile: 'app/Dockerfile'
-    tags: |
-      latest
-      $(Build.BuildId)
+  # === NOMBRES DE IMAGENES ===
+  backendImageName: 'fastapi-backend'
+  frontendImageName: 'react-frontend'
 
-# 2. Desplegar la nueva imagen en Azure Container Apps
-- task: AzureContainerApps@1
-  displayName: Deploy to Azure Container Apps
-  inputs:
-    azureSubscription: $(azureConnection)
-    containerAppName: $(containerAppName)
-    resourceGroup: $(resourceGroup)
-    imageToDeploy: '$(dockerId)/$(imageName):$(Build.BuildId)'
+  # === INFRAESTRUCTURA ===
+  # Estos valores deben coincidir con lo generado en setup_tf_state.sh o tus variables secretas
+  # Se recomienda definirlos en Azure DevOps Library/Variables
+  tfStateRg: 'rg-terraform-state'
+  tfStateStorageAccount: 'tfstate123456' # <--- Reemplazar con el output del script setup
+  tfStateContainer: 'tfstate'
+  tfStateKey: 'terraform.tfstate'
+
+  # Variables de Terraform
+  projectSuffix: 'demo1'
+  resourceGroup: 'rg-fastapi-demo1'
+  backendAppName: 'app-backend-demo1'
+  frontendAppName: 'app-frontend-demo1'
+
+stages:
+# ------------------------------------------------------------------
+# STAGE 1: BUILD & PUSH
+# ------------------------------------------------------------------
+- stage: Build
+  displayName: 'Build and Push Images'
+  jobs:
+  - job: BuildBackend
+    displayName: 'Build Backend'
+    steps:
+    - task: Docker@2
+      displayName: 'Build & Push Backend'
+      inputs:
+        containerRegistry: $(dockerConnection)
+        repository: $(dockerId)/$(backendImageName)
+        command: 'buildAndPush'
+        Dockerfile: 'app/Dockerfile'
+        tags: |
+          latest
+          $(Build.BuildId)
+
+  - job: BuildFrontend
+    displayName: 'Build Frontend'
+    steps:
+    - task: Docker@2
+      displayName: 'Build & Push Frontend'
+      inputs:
+        containerRegistry: $(dockerConnection)
+        repository: $(dockerId)/$(frontendImageName)
+        command: 'buildAndPush'
+        Dockerfile: 'frontend/Dockerfile'
+        tags: |
+          latest
+          $(Build.BuildId)
+
+# ------------------------------------------------------------------
+# STAGE 2: INFRASTRUCTURE (TERRAFORM)
+# ------------------------------------------------------------------
+- stage: Infrastructure
+  displayName: 'Deploy Infrastructure'
+  dependsOn: Build
+  jobs:
+  - job: Terraform
+    displayName: 'Terraform Apply'
+    steps:
+    # 1. Instalar Terraform (Opcional si el agente ya lo tiene, pero bueno asegurar version)
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: 'latest'
+
+    # 2. Inicializar Terraform con Backend Remoto
+    - task: TerraformTaskV4@4
+      displayName: 'Terraform Init'
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/infra'
+        backendServiceArm: '$(azureConnection)'
+        backendAzureRmResourceGroupName: '$(tfStateRg)'
+        backendAzureRmStorageAccountName: '$(tfStateStorageAccount)'
+        backendAzureRmContainerName: '$(tfStateContainer)'
+        backendAzureRmKey: '$(tfStateKey)'
+
+    # 3. Validar y Planear
+    - task: TerraformTaskV4@4
+      displayName: 'Terraform Plan'
+      inputs:
+        provider: 'azurerm'
+        command: 'plan'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/infra'
+        environmentServiceNameAzureRM: '$(azureConnection)'
+        commandOptions: '-var "project_suffix=$(projectSuffix)" -var "backend_image=$(dockerId)/$(backendImageName):latest" -var "frontend_image=$(dockerId)/$(frontendImageName):latest" -var "db_pass=$(DB_PASSWORD)"'
+      env:
+        # DB_PASSWORD debe estar configurado como variable secreta en el Pipeline
+        DB_PASSWORD: $(DB_PASSWORD)
+
+    # 4. Aplicar Cambios
+    - task: TerraformTaskV4@4
+      displayName: 'Terraform Apply'
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/infra'
+        environmentServiceNameAzureRM: '$(azureConnection)'
+        commandOptions: '-auto-approve -var "project_suffix=$(projectSuffix)" -var "backend_image=$(dockerId)/$(backendImageName):latest" -var "frontend_image=$(dockerId)/$(frontendImageName):latest" -var "db_pass=$(DB_PASSWORD)"'
+      env:
+        DB_PASSWORD: $(DB_PASSWORD)
+
+# ------------------------------------------------------------------
+# STAGE 3: DEPLOY (CONTAINER APPS UPDATE)
+# ------------------------------------------------------------------
+- stage: Deploy
+  displayName: 'Update Container Apps'
+  dependsOn: Infrastructure
+  jobs:
+  - job: DeployApps
+    displayName: 'Update Images'
+    steps:
+    - task: AzureContainerApps@1
+      displayName: 'Deploy Backend'
+      inputs:
+        azureSubscription: '$(azureConnection)'
+        imageToDeploy: '$(dockerId)/$(backendImageName):$(Build.BuildId)'
+        containerAppName: '$(backendAppName)'
+        resourceGroup: '$(resourceGroup)'
+
+    - task: AzureContainerApps@1
+      displayName: 'Deploy Frontend'
+      inputs:
+        azureSubscription: '$(azureConnection)'
+        imageToDeploy: '$(dockerId)/$(frontendImageName):$(Build.BuildId)'
+        containerAppName: '$(frontendAppName)'
+        resourceGroup: '$(resourceGroup)'
