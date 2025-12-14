@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM python:3.12-slim
 
 # 1. Traemos uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
