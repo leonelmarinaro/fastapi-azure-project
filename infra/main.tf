@@ -24,7 +24,7 @@ provider "azurerm" {
 # --- GRUPO DE RECURSOS ---
 resource "azurerm_resource_group" "rg" {
   name     = "rg-fastapi-${var.project_suffix}-${var.environment}"
-  location = "East US"
+  location = "West US 2"
 }
 
 # --- BASE DE DATOS POSTGRES (Capa B1ms - Burstable) ---
