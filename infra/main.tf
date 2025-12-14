@@ -87,12 +87,13 @@ resource "azurerm_container_app" "backend" {
   ingress {
     external_enabled = false # INTERNAL ONLY
     target_port      = 80
+    transport        = "auto" # Explicitly set auto (or http) to avoid defaulting issues
     traffic_weight {
       percentage = 100
       latest_revision = true
     }
     # Allow traffic from the environment (Frontend)
-    allow_insecure_connections = false
+    allow_insecure_connections = true # Permite HTTP simple interno
   }
 
   lifecycle {
