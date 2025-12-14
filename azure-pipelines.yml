@@ -4,10 +4,11 @@ trigger:
       - main
       - dev
   paths:
-    include: [ app/*, frontend/*, infra/*, Dockerfile ]
+    include: [ app/*, frontend/*, infra/*, Dockerfile, azure-pipelines.yml ]
 
 pool:
-  name: 'Default'
+  # name: 'Default'
+  vmImage: 'ubuntu-latest'
 
 variables:
   # Nombres de las conexiones (Asegúrate que coincidan con lo que creaste en Project Settings)
