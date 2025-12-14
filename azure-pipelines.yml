@@ -9,7 +9,7 @@ trigger:
       - infra/*
 
 pool:
-  vmImage: 'ubuntu-latest'
+  name: 'Default' # Usar el pool 'Default' donde registraste tu agente local
 
 variables:
   # === CONFIGURACION GENERAL ===
