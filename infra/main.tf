@@ -92,6 +92,7 @@ resource "azurerm_container_app" "backend" {
   ingress {
     external_enabled = false
     target_port      = 80
+    transport        = "auto" # Explicitly set auto (or http) to avoid defaulting issues
     traffic_weight {
       percentage = 100
       latest_revision = true
