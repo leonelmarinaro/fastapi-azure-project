@@ -91,3 +91,9 @@ uv run uvicorn main:app --reload
 ## Costos (Estimación Low Cost)
 - **Container Apps:** Configurado para escalar a 0 (`min_replicas = 0`). Solo pagas por segundos de ejecución activa.
 - **Postgres Flexible Server:** Tier B1ms. Es la opción más económica de instancia flexible (~$15/mes aprox si está encendida 24/7, pero es burstable). *Recomendación: Detener la base de datos cuando no se use.*
+
+
+Para pruebas locales:
+```bash
+docker build -f docker-compose.yaml -t mi-app-local .
+```

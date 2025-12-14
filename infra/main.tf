@@ -60,20 +60,20 @@ resource "azurerm_container_app_environment" "env" {
   location            = azurerm_resource_group.rg.location
 }
 
-# --- CONTAINER APP: BACKEND (Internal Ingress) ---
-resource "azurerm_container_app" "backend" {
-  name                         = "app-backend-${var.project_suffix}"
+# --- CONTAINER APP: UNIFICADA (Back + Front) ---
+resource "azurerm_container_app" "app" {
+  name                         = "app-unified-${var.project_suffix}"
   container_app_environment_id = azurerm_container_app_environment.env.id
   resource_group_name          = azurerm_resource_group.rg.name
   revision_mode                = "Single"
 
   template {
-    min_replicas = 0 # Scale to Zero
+    min_replicas = 0
     max_replicas = 1
     
     container {
-      name   = "fastapi-container"
-      image  = var.backend_image
+      name   = "unified-container"
+      image  = var.backend_image # Usaremos una sola imagen
       cpu    = 0.25
       memory = "0.5Gi"
       
@@ -85,51 +85,7 @@ resource "azurerm_container_app" "backend" {
   }
   
   ingress {
-    external_enabled = false # INTERNAL ONLY
-    target_port      = 80
-    transport        = "auto" # Explicitly set auto (or http) to avoid defaulting issues
-    traffic_weight {
-      percentage = 100
-      latest_revision = true
-    }
-    # Allow traffic from the environment (Frontend)
-    allow_insecure_connections = true # Permite HTTP simple interno
-  }
-
-  lifecycle {
-    ignore_changes = [
-      template[0].container[0].image
-    ]
-  }
-}
-
-# --- CONTAINER APP: FRONTEND (External Ingress) ---
-resource "azurerm_container_app" "frontend" {
-  name                         = "app-frontend-${var.project_suffix}"
-  container_app_environment_id = azurerm_container_app_environment.env.id
-  resource_group_name          = azurerm_resource_group.rg.name
-  revision_mode                = "Single"
-
-  template {
-    min_replicas = 0 # Scale to Zero
-    max_replicas = 1
-
-    container {
-      name   = "frontend-container"
-      image  = var.frontend_image
-      cpu    = 0.25
-      memory = "0.5Gi"
-
-      env {
-        name = "BACKEND_URL"
-        # URL interna del backend en el mismo entorno: http://<app-name>
-        value = "http://app-backend-${var.project_suffix}"
-      }
-    }
-  }
-
-  ingress {
-    external_enabled = true # Public Access
+    external_enabled = true # AHORA ES PÚBLICO
     target_port      = 80
     traffic_weight {
       percentage = 100
@@ -143,3 +99,5 @@ resource "azurerm_container_app" "frontend" {
     ]
   }
 }
+
+
