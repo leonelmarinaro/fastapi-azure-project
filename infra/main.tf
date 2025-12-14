@@ -6,13 +6,15 @@ terraform {
     }
   }
   # Backend configuration for remote state
-  # This will be initialized with -backend-config in the pipeline
-  backend "azurerm" {
-    # resource_group_name  = "rg-terraform-state"
-    # storage_account_name = "sttfstate${unique_id}"
-    # container_name       = "tfstate"
-    # key                  = "terraform.tfstate"
-  }
+  # For local testing, use local backend.
+  # In pipeline, use -backend-config to initialize remote backend.
+  # backend "azurerm" {
+  #   # resource_group_name  = "rg-terraform-state"
+  #   # storage_account_name = "sttfstate${unique_id}"
+  #   # container_name       = "tfstate"
+  #   # key                  = "terraform.tfstate"
+  # }
+  backend "local" {}
 }
 
 provider "azurerm" {
@@ -22,7 +24,8 @@ provider "azurerm" {
 # --- GRUPO DE RECURSOS ---
 resource "azurerm_resource_group" "rg" {
   name     = "rg-fastapi-${var.project_suffix}"
-  location = "East US"
+  # location = "East US"
+  location = "West Europe"  # Cambiado para evitar restricciones en East US
 }
 
 # --- BASE DE DATOS POSTGRES (Capa B1ms - Burstable) ---
@@ -35,6 +38,7 @@ resource "azurerm_postgresql_flexible_server" "db" {
   administrator_password = var.db_pass
   sku_name               = "B_Standard_B1ms"
   storage_mb             = 32768
+  zone                   = "1"
   
   public_network_access_enabled = true 
 }
@@ -68,8 +72,9 @@ resource "azurerm_container_app" "backend" {
   revision_mode                = "Single"
 
   template {
-    min_replicas = 0 # Scale to Zero
+    min_replicas = 1 # Temporalmente 1 para debugging, force new revision
     max_replicas = 1
+    revision_suffix = "v2"
     
     container {
       name   = "fastapi-container"
@@ -85,15 +90,14 @@ resource "azurerm_container_app" "backend" {
   }
   
   ingress {
-    external_enabled = false # INTERNAL ONLY
+    external_enabled = false
     target_port      = 80
     transport        = "auto" # Explicitly set auto (or http) to avoid defaulting issues
     traffic_weight {
       percentage = 100
       latest_revision = true
     }
-    # Allow traffic from the environment (Frontend)
-    allow_insecure_connections = true # Permite HTTP simple interno
+    allow_insecure_connections = true
   }
 
   lifecycle {
@@ -113,6 +117,7 @@ resource "azurerm_container_app" "frontend" {
   template {
     min_replicas = 0 # Scale to Zero
     max_replicas = 1
+    revision_suffix = "v2"
 
     container {
       name   = "frontend-container"
@@ -122,8 +127,8 @@ resource "azurerm_container_app" "frontend" {
 
       env {
         name = "BACKEND_URL"
-        # URL interna del backend en el mismo entorno: http://<app-name>
-        value = "http://app-backend-${var.project_suffix}"
+        # URL interna completa del backend
+        value = "http://app-backend-prueba1.internal.nicesky-61ea5a0e.westeurope.azurecontainerapps.io"
       }
     }
   }
