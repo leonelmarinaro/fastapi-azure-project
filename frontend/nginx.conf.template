@@ -1,0 +1,27 @@
+server {
+    listen 80;
+
+    location / {
+        root /usr/share/nginx/html;
+        index index.html index.htm;
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /api/ {
+        # La URL del backend se define en tiempo de ejecución o se hardcodea si es fija.
+        # En Azure Container Apps con Ingress Interno, el nombre suele ser http://<app-name>
+        # Usaremos una variable de entorno sustituida por envsubst o proxy_pass directo si el nombre es predecible.
+        # Para simplificar, asumiremos que pasamos la URL completa en BACKEND_URL, pero nginx no lee env vars por defecto en config.
+        # Usaremos el truco de templates de la imagen oficial de nginx o resolveremos DNS.
+
+        # En este caso, configuraremos el proxy para que apunte al servicio interno.
+        # La URL será http://app-fastapi-<suffix> pero el suffix es variable.
+        # Solución: Usaremos una variable que reemplazaremos en el entrypoint.
+
+        # Rewrite para quitar el prefijo /api antes de enviar al backend
+        rewrite ^/api/(.*) /$1 break;
+        proxy_pass ${BACKEND_URL};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}

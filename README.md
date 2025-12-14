@@ -1,92 +1,93 @@
-# FastAPI Azure Project
+# FastAPI Azure Project: Full Stack Edition
 
-Este proyecto implementa una aplicación web utilizando FastAPI, desplegada en Azure con infraestructura gestionada por Terraform. Incluye pipelines de CI/CD configurados con Azure DevOps.
+Este proyecto implementa una arquitectura **Full Stack** en Azure utilizando servicios "Low Cost" (Capa Gratuita o Burstable) para pruebas y desarrollo.
+
+## Arquitectura
+
+- **Frontend:** React (Vite) + Nginx (Reverse Proxy). Desplegado en Azure Container Apps (Ingress Externo).
+- **Backend:** FastAPI (Python). Desplegado en Azure Container Apps (Ingress Interno).
+- **Base de Datos:** Azure Database for PostgreSQL - Flexible Server (B1ms - Burstable).
+- **Infraestructura:** Gestionada con **Terraform**.
+- **CI/CD:** Azure DevOps Pipelines.
 
 ## Estructura del Proyecto
 
 ```
 fastapi-azure-project/
-├── azure-pipelines.yml    # Configuración de CI/CD para Azure Pipelines
-├── app/                   # Código de la aplicación FastAPI
-│   ├── Dockerfile         # Imagen Docker para la aplicación
-│   ├── main.py            # Punto de entrada de la aplicación
-│   ├── pyproject.toml     # Dependencias y configuración de Python
-│   └── README.md          # Documentación específica de la app (vacío)
-├── infra/                 # Infraestructura como código con Terraform
-│   ├── main.tf            # Recursos principales de Azure
-│   ├── outputs.tf         # Salidas de Terraform
-│   ├── terraform.tfvars   # Variables de configuración (ignoradas en Git)
-│   └── variables.tf       # Definiciones de variables
-└── .gitignore             # Archivos ignorados por Git
+├── app/                   # Backend FastAPI
+│   ├── Dockerfile         # Usa `uv` para dependencias
+│   ├── main.py            # API
+│   ├── pyproject.toml     # Definición de dependencias
+├── frontend/              # Frontend React
+│   ├── Dockerfile         # Multi-stage build (Node -> Nginx)
+│   ├── nginx.conf.template # Config proxy reverso
+│   └── src/               # Código React
+├── infra/                 # Terraform
+│   ├── main.tf            # Recursos Azure (Apps + DB + Red)
+│   └── variables.tf       # Variables parametrizables
+├── scripts/               # Scripts de utilidad
+│   └── setup_tf_state.sh  # Script para crear Storage Account de Terraform
+└── azure-pipelines.yml    # Pipeline CI/CD completo
 ```
 
-## Requisitos
+## Guía de Configuración Inicial
 
-- Python 3.8+
-- Docker
-- Terraform 1.0+
-- Cuenta de Azure con permisos para crear recursos
-- Azure DevOps para CI/CD (opcional)
+Para desplegar este proyecto, necesitas configurar Azure DevOps y Azure.
 
-## Instalación y Configuración
+### 1. Prerrequisitos
+- Cuenta de Azure activa.
+- Cuenta de Azure DevOps y un proyecto creado.
+- Cuenta de Docker Hub.
+- Azure CLI instalado localmente (para scripts iniciales).
 
-### 1. Clonar el repositorio
+### 2. Configurar Azure Service Connections
+En tu proyecto de Azure DevOps (Project Settings -> Service connections):
+1.  **Docker Registry:** Crea una conexión llamada `DockerHubConn` apuntando a tu Docker Hub.
+2.  **Azure Resource Manager:** Crea una conexión llamada `AzureRMConn` (Service Principal) con permisos sobre tu suscripción.
+
+### 3. Configurar el Estado Remoto de Terraform
+Para que Terraform recuerde la infraestructura entre ejecuciones del pipeline, necesitamos un Storage Account.
+1. Abre una terminal con Azure CLI logueado (`az login`).
+2. Ejecuta el script de ayuda (o crea los recursos manualmente):
+   ```bash
+   chmod +x scripts/setup_tf_state.sh
+   ./scripts/setup_tf_state.sh
+   ```
+3. Toma nota de los valores que imprime el script (`TF_STATE_RG`, `TF_STATE_STORAGE_ACCOUNT`, etc.).
+
+### 4. Configurar el Pipeline
+1. Ve a **Pipelines** en Azure DevOps y crea uno nuevo seleccionando este repositorio y el archivo `azure-pipelines.yml`.
+2. Antes de correrlo, edita las **Variables** del pipeline (botón "Variables" o "Library" -> "Variable Groups"):
+   - **DB_PASSWORD**: Contraseña para la base de datos (márcala como secreto/candado).
+   - Edita directamente el archivo `azure-pipelines.yml` (o usa variables) para actualizar:
+     - `dockerId`: Tu usuario de Docker Hub.
+     - `tfStateStorageAccount`: El nombre generado en el paso 3.
+     - `projectSuffix`: Un sufijo único para tus recursos (ej. "demo-juan").
+
+### 5. Ejecutar
+Haz commit y push. El pipeline se disparará automáticamente:
+1.  Construirá las imágenes Docker.
+2.  Desplegará la infraestructura con Terraform.
+3.  Actualizará las Container Apps con las nuevas imágenes.
+
+## Desarrollo Local
+
+### Frontend
 ```bash
-git clone <url-del-repositorio>
-cd fastapi-azure-project
+cd frontend
+npm install
+npm run dev
 ```
+*Nota: Para que funcione localmente con el backend, configura el proxy en vite.config.js o corre el backend en el puerto esperado.*
 
-### 2. Configurar el entorno virtual
-```bash
-python -m venv .venv
-source .venv/bin/activate  # En Windows: .venv\Scripts\activate
-pip install -r app/requirements.txt  # O usar pyproject.toml
-```
-
-### 3. Configurar Terraform
-- Edita `infra/terraform.tfvars` con tus valores de Azure (asegúrate de no commitear este archivo).
-- Inicializa Terraform:
-  ```bash
-  cd infra
-  terraform init
-  terraform plan
-  terraform apply
-  ```
-
-## Ejecución Local
-
-### Ejecutar la aplicación
+### Backend
 ```bash
 cd app
-uvicorn main:app --reload
-```
-Accede a http://localhost:8000/docs para ver la documentación interactiva de la API.
-
-### Ejecutar con Docker
-```bash
-cd app
-docker build -t fastapi-app .
-docker run -p 8000:8000 fastapi-app
+# Usando uv
+uv sync
+uv run uvicorn main:app --reload
 ```
 
-## Despliegue
-
-### Usando Azure Pipelines
-- Configura un pipeline en Azure DevOps usando `azure-pipelines.yml`.
-- Asegúrate de tener los service connections configurados para Azure y Docker.
-
-### Despliegue manual
-1. Construye la imagen Docker.
-2. Despliega en Azure Container Instances o App Service usando los recursos de Terraform.
-
-## Contribución
-
-1. Crea una rama para tu feature.
-2. Realiza tus cambios.
-3. Ejecuta tests si existen.
-4. Envía un pull request.
-
-## Licencia
-
-Este proyecto está bajo la licencia MIT.</content>
-<parameter name="filePath">c:\Users\marin\Documents\Platzi\fastapi-azure-project\README.md
+## Costos (Estimación Low Cost)
+- **Container Apps:** Configurado para escalar a 0 (`min_replicas = 0`). Solo pagas por segundos de ejecución activa.
+- **Postgres Flexible Server:** Tier B1ms. Es la opción más económica de instancia flexible (~$15/mes aprox si está encendida 24/7, pero es burstable). *Recomendación: Detener la base de datos cuando no se use.*
