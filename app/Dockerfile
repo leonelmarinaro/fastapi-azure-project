@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM python:3.12-slim
 
 # 1. Traemos uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
@@ -6,7 +6,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 WORKDIR /app
 
 # 2. Copiamos PRIMERO los archivos de definición (para caché)
-COPY pyproject.toml uv.lock ./
+# IMPORTANTE: Copiamos README.md porque pyproject.toml lo referencia
+COPY pyproject.toml uv.lock README.md ./
 
 # 3. Instalamos las dependencias
 # --system: Instala en el python global del contenedor
