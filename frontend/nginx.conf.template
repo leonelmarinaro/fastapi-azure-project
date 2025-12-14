@@ -18,8 +18,6 @@ server {
         # La URL será http://app-fastapi-<suffix> pero el suffix es variable.
         # Solución: Usaremos una variable que reemplazaremos en el entrypoint.
 
-        # Rewrite para quitar el prefijo /api antes de enviar al backend
-        rewrite ^/api/(.*) /$1 break;
         proxy_pass ${BACKEND_URL};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
