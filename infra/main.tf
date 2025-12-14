@@ -21,13 +21,13 @@ provider "azurerm" {
 
 # --- GRUPO DE RECURSOS ---
 resource "azurerm_resource_group" "rg" {
-  name     = "rg-fastapi-${var.project_suffix}"
+  name     = "rg-fastapi-${var.project_suffix}-${var.environment}"
   location = "East US"
 }
 
 # --- BASE DE DATOS POSTGRES (Capa B1ms - Burstable) ---
 resource "azurerm_postgresql_flexible_server" "db" {
-  name                   = "psql-fastapi-${var.project_suffix}"
+  name                   = "psql-fastapi-${var.project_suffix}-${var.environment}"
   resource_group_name    = azurerm_resource_group.rg.name
   location               = azurerm_resource_group.rg.location
   version                = "13"
@@ -55,14 +55,14 @@ resource "azurerm_postgresql_flexible_server_firewall_rule" "allow_all" {
 
 # --- CONTAINER APPS ENVIRONMENT ---
 resource "azurerm_container_app_environment" "env" {
-  name                = "aca-env-${var.project_suffix}"
+  name                = "aca-env-${var.project_suffix}-${var.environment}"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
 }
 
 # --- CONTAINER APP: UNIFICADA (Back + Front) ---
 resource "azurerm_container_app" "app" {
-  name                         = "app-unified-${var.project_suffix}"
+  name                         = "app-unified-${var.project_suffix}-${var.environment}"
   container_app_environment_id = azurerm_container_app_environment.env.id
   resource_group_name          = azurerm_resource_group.rg.name
   revision_mode                = "Single"

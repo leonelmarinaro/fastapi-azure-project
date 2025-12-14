@@ -95,5 +95,6 @@ uv run uvicorn main:app --reload
 
 Para pruebas locales:
 ```bash
-docker build -f docker-compose.yaml -t mi-app-local .
+docker build -t mi-app-local .
+docker run -p 8080:80 mi-app-local
 ```
