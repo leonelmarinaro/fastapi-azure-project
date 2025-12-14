@@ -10,18 +10,15 @@ pool:
   name: 'Default'
 
 variables:
-  dockerId: 'TU_USUARIO_DOCKERHUB'
-  dockerConnection: 'DockerHubConn'
+  # Nombres de las conexiones (Asegúrate que coincidan con lo que creaste en Project Settings)
+  dockerConnection: 'DockerHubConn' 
   azureConnection: 'AzureRMConn' 
-  
-  # Solo una imagen y una app
+
+  # Nombre de la imagen y app
   imageName: 'fastapi-react-unified'
   baseAppName: 'app-unified'
-  
-  # Variables Infra (Igual que antes)
-  tfStateRg: 'rg-terraform-state'
-  tfStateStorageAccount: 'tfstate123456' 
-  tfStateContainer: 'tfstate'
+
+  # Variables del proyecto
   projectSuffix: 'demo1'
   
   # Lógica condicional para variables de entorno
