@@ -17,6 +17,8 @@ terraform {
 
 provider "azurerm" {
   features {}
+  # Terraform tomará la autenticación del paso "Azure Login" del pipeline automáticamente
+  use_oidc = false # O true si configuras OIDC avanzado, pero con Client Secret (Service Principal) funciona directo
 }
 
 # --- GRUPO DE RECURSOS ---
