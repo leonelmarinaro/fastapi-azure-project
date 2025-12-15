@@ -97,4 +97,8 @@ Para pruebas locales:
 ```bash
 docker build -t mi-app-local .
 docker run -p 8080:80 mi-app-local
+
+docker run -p 8080:80 \
+  -e DATABASE_URL="postgresql://adminuser:<TU_PASSWORD>@psql-fastapi-demo1-prod.postgres.database.azure.com:5432/<TU_DB>?sslmode=require" \
+  mi-app-local
 ```
