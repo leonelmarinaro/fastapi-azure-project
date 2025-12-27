@@ -1,7 +1,10 @@
 import os
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
+
+from fastapi import Body, FastAPI
+from typing import Any
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 from sqlalchemy import create_engine, text
 
 app = FastAPI()
@@ -17,15 +20,50 @@ def read_root():
 
 
 @app.get("/api/db-test")
-def test_db():
+def test_db() -> dict[str, Any]:
     try:
         engine = create_engine(DATABASE_URL)
         with engine.connect() as connection:
             result = connection.execute(text("SELECT version();"))
-            version = result.fetchone()[0]
+            row = result.fetchone()
+            version = row[0] if row else "No version found"
         return {"estado_db": "Conectado exitosamente", "version": version}
     except Exception as e:
         return {"estado_db": "Error de conexión", "detalle": str(e)}
+
+
+class Customer(BaseModel):
+    name: str
+    description: str | None
+    email: str
+    age: int
+
+
+@app.post("/api/customers/", response_model=dict[str, Customer | str])
+async def create_customer(
+    customer_data: Customer = Body(...),
+) -> dict[str, Customer | str]:
+    """
+    Endpoint to create a new customer.
+
+    This endpoint receives customer data in the request body and returns a response
+    indicating the successful creation of the customer along with the provided customer data.
+
+    Path:
+        POST /api/customers/
+
+    Request Body:
+        customer_data (Customer): The data of the customer to be created.
+
+    Response:
+        200 OK: A dictionary containing:
+            - "message" (str): A success message.
+            - "cliente" (Customer): The data of the created customer.
+
+    Raises:
+        ValidationError: If the provided customer data does not match the expected schema.
+    """
+    return {"message": "Cliente creado exitosamente", "cliente": customer_data}
 
 
 # --- FRONTEND (REACT) ---
