@@ -4,8 +4,8 @@ from fastapi import Body, FastAPI
 from typing import Any
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 from sqlalchemy import create_engine, text
+from models import Customer, Transaction, Invoice
 
 app = FastAPI()
 
@@ -30,13 +30,6 @@ def test_db() -> dict[str, Any]:
         return {"estado_db": "Conectado exitosamente", "version": version}
     except Exception as e:
         return {"estado_db": "Error de conexión", "detalle": str(e)}
-
-
-class Customer(BaseModel):
-    name: str
-    description: str | None
-    email: str
-    age: int
 
 
 @app.post("/api/customers/", response_model=dict[str, Customer | str])
@@ -64,6 +57,23 @@ async def create_customer(
         ValidationError: If the provided customer data does not match the expected schema.
     """
     return {"message": "Cliente creado exitosamente", "cliente": customer_data}
+
+
+@app.post("/api/transactions/", response_model=dict[str, Transaction | str])
+async def create_transaction(
+    transaction_data: Transaction = Body(...),
+) -> dict[str, Transaction | str]:
+    return {
+        "message": "Transacción creada exitosamente",
+        "transaccion": transaction_data,
+    }
+
+
+@app.post("/api/invoices/", response_model=dict[str, Invoice | str])
+async def create_invoice(
+    invoice_data: Invoice = Body(...),
+) -> dict[str, Invoice | str]:
+    return {"message": "Factura creada exitosamente", "factura": invoice_data}
 
 
 # --- FRONTEND (REACT) ---
